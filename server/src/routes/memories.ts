@@ -3,8 +3,15 @@ import { prisma } from '../lib/prisma'
 import { z } from 'zod'
 
 export async function memoriesRoutes(server: FastifyInstance){
-  server.get('/memories', async () => {
+  server.addHook('preHandler', async (req) => {
+    await req.jwtVerify()
+  })
+
+  server.get('/memories', async (req) => {
     const memories = await prisma.memory.findMany({
+      where: {
+        userId: req.user.sub,
+      },
       orderBy: {
         createdAt: 'asc',
       },
@@ -18,7 +25,7 @@ export async function memoriesRoutes(server: FastifyInstance){
       }
     })
   })
-  server.get('/memories/:id', async (req) => {
+  server.get('/memories/:id', async (req, rep) => {
     const paramsSchema = z.object({
       id: z.string().uuid(),
     })
@@ -30,6 +37,10 @@ export async function memoriesRoutes(server: FastifyInstance){
         id,
       },
     })
+
+    if (!memory.isPublic && memory.userId !== req.user.sub){
+      return rep.status(401).send()
+    }
 
     return memory
   })
@@ -47,13 +58,13 @@ export async function memoriesRoutes(server: FastifyInstance){
         content,
         coverUrl,
         isPublic,
-        userId: '6b819545-174d-4ad2-a282-f952fc75920b',
+        userId: req.user.sub,
       },
     })
     
     return memory
   })
-  server.put('/memories/:id', async (req) => {
+  server.put('/memories/:id', async (req, rep) => {
     const paramsSchema = z.object({
       id: z.string().uuid(),
     })
@@ -66,7 +77,17 @@ export async function memoriesRoutes(server: FastifyInstance){
     const { id } = paramsSchema.parse(req.params)
     const { content, coverUrl, isPublic } = bodySchema.parse(req.body)
 
-    const memory = await prisma.memory.update({
+    let memory = await prisma.memory.findUniqueOrThrow({
+      where: {
+        id,
+      }
+    })
+
+    if (memory.userId !== req.user.sub) {
+      return rep.status(401).send()
+    }
+    
+    memory = await prisma.memory.update({
       where: {
         id,
       },
@@ -79,14 +100,24 @@ export async function memoriesRoutes(server: FastifyInstance){
     
     return memory
   })
-  server.delete('/memories/:id', async (req) => {
+  server.delete('/memories/:id', async (req, rep) => {
     const paramsSchema = z.object({
       id: z.string().uuid(),
     })
 
     const { id } = paramsSchema.parse(req.params)
 
-    const memory = await prisma.memory.delete({
+    const memory = await prisma.memory.findUniqueOrThrow({
+      where: {
+        id,
+      }
+    })
+
+    if (memory.userId !== req.user.sub) {
+      return rep.status(401).send()
+    }
+
+    await prisma.memory.delete({
       where: {
         id,
       },

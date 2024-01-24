@@ -18,7 +18,7 @@ export async function authRoutes(server: FastifyInstance) {
           client_id: process.env.GITHUB_CLIENT_ID,
           client_secret: process.env.GITHUB_CLIENT_SECRET,
           code,
-        },
+      },
         headers: {
           Accept: 'application/json',
         }
@@ -59,6 +59,17 @@ export async function authRoutes(server: FastifyInstance) {
       })
     }
 
-    return user 
+    const token = server.jwt.sign(
+      {
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+      },
+      {
+        sub: user.id,
+        expiresIn: '30 days',
+      }
+    )
+
+    return token 
   })
 }
