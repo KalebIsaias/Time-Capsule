@@ -12,9 +12,9 @@ import { resolve } from 'node:path'
 const server = fastify()
 
 server.register(multipart)
-server.register(require('@fastify-static'), {
+server.register(require('@fastify/static'), {
   root: resolve(__dirname, '../uploads'),
-  prefix: '/uploads/',
+  prefix: '/uploads',
 })
 server.register(cors, {
   origin: true,
